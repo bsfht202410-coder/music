@@ -1,48 +1,93 @@
+:root {
+  --bg-color: #0d0d0d;
+  --bg-secondary: #161616;
+  --bg-tertiary: #222;
+  --text-primary: #f8f9fa;
+  --text-secondary: #a1a1aa;
+  
+  --border-color: #333;
+  --border-hover: #444;
+
+  --accent-primary: #10b981; /* Green */
+  --accent-primary-bg: rgba(16, 185, 129, 0.15);
+  
+  --accent-warning: #f59e0b; /* Orange */
+  --accent-warning-bg: rgba(245, 158, 11, 0.15);
+  
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  
+  --transition: all 0.2s ease-in-out;
+}
+
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #111;
-  color: #fff;
-  padding-bottom: 120px;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  padding-bottom: 140px; /* Space for the fixed player */
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* Header */
+.app-header {
+  padding: 24px 20px 10px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.app-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(90deg, #fff, #a1a1aa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Main Layout */
 main {
-  padding: 16px;
+  padding: 10px 20px;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 /* ---- Book cards ---- */
 
 .book {
-  margin-bottom: 16px;
-  padding: 12px;
-  border: 1px solid #333;
-  border-radius: 12px;
-  background: #161616;
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-secondary);
+  transition: var(--transition);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
+.book:hover {
+  border-color: var(--border-hover);
+}
+
+/* Status Colors for Book Border */
 .book.status-completed {
-  border-color: #4caf50;
-  background: #152019;
+  border-color: var(--accent-primary);
 }
 
 .book.status-partial {
-  border-color: #ff9800;
-  background: #201a14;
-}
-
-.book.status-new {
-  border-color: #333;
-  background: #161616;
+  border-color: var(--accent-warning);
 }
 
 .book-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
   user-select: none;
 }
@@ -50,11 +95,14 @@ main {
 .collapse-btn {
   background: none;
   border: none;
-  color: #ddd;
-  font-size: 18px;
+  color: var(--text-secondary);
+  font-size: 20px;
   cursor: pointer;
-  padding: 4px 6px;
-  transition: transform 0.15s ease;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .book:not(.collapsed) .collapse-btn {
@@ -64,39 +112,37 @@ main {
 .book-title {
   margin: 0;
   flex: 1;
-  font-size: 17px;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 .book-count {
-  color: #aaa;
+  color: var(--text-secondary);
   font-size: 13px;
   white-space: nowrap;
 }
 
 .badge {
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
   font-size: 12px;
-  border: 1px solid;
+  font-weight: 500;
   white-space: nowrap;
 }
 
 .badge-completed {
-  color: #a5d6a7;
-  border-color: #4caf50;
-  background: #1e2a1e;
+  color: var(--accent-primary);
+  background: var(--accent-primary-bg);
 }
 
 .badge-partial {
-  color: #ffcc80;
-  border-color: #ff9800;
-  background: #2a2018;
+  color: var(--accent-warning);
+  background: var(--accent-warning-bg);
 }
 
 .badge-new {
-  color: #bbb;
-  border-color: #444;
-  background: #222;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
 }
 
 .book.collapsed .book-body {
@@ -104,68 +150,93 @@ main {
 }
 
 .book-body {
-  margin-top: 10px;
+  margin-top: 16px;
+  animation: fadeIn 0.3s ease-in-out;
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Load Book Button */
 .load-book-btn {
   width: 100%;
-  padding: 10px 14px;
-  border: 1px solid #444;
-  background: #222;
-  color: #fff;
-  border-radius: 8px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: var(--transition);
 }
 
 .load-book-btn:hover {
-  background: #333;
+  background: #2a2a2a;
+  border-color: #555;
 }
 
+/* Action Buttons */
 .book-actions {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
 }
 
 .book-actions button {
-  padding: 6px 10px;
+  padding: 8px 14px;
   font-size: 13px;
-  background: #222;
-  border: 1px solid #444;
-  color: #ddd;
-  border-radius: 6px;
+  font-weight: 500;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition);
 }
 
 .book-actions button:hover {
-  background: #333;
+  background: #2a2a2a;
+  color: var(--text-primary);
 }
 
+/* Chapters */
 .book ol {
-  margin: 0;
-  padding-left: 0;
   list-style: none;
 }
 
 .chapter-row {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 10px;
   align-items: stretch;
 }
 
 .chapter-button {
   flex: 1;
   text-align: left;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #444;
-  background: #1d1d1d;
-  color: #fff;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 15px;
+  font-family: inherit;
+  transition: var(--transition);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .chapter-button:hover {
@@ -173,58 +244,148 @@ main {
 }
 
 .chapter-button.completed {
-  background: #1e2a1e;
-  border-color: #4caf50;
-  color: #a5d6a7;
+  background: var(--accent-primary-bg);
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.chapter-button.completed .chapter-title {
+  color: var(--accent-primary);
 }
 
 .toggle-btn {
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #444;
-  background: #1d1d1d;
-  color: #fff;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
   cursor: pointer;
-  font-size: 18px;
+  font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 48px;
+  transition: var(--transition);
 }
 
 .toggle-btn:hover {
   background: #2a2a2a;
+  color: var(--text-primary);
 }
 
 .toggle-btn.completed {
-  background: #1e2a1e;
-  border-color: #4caf50;
-  color: #4caf50;
+  background: var(--accent-primary-bg);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
-footer {
+/* Footer / Sticky Player */
+.player-container {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  background: #181818;
-  border-top: 1px solid #333;
-  padding: 12px;
+  background: rgba(13, 13, 13, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 16px 20px 24px; /* extra bottom padding for modern phones */
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
 }
 
-#now-playing {
-  margin-bottom: 8px;
-  color: #ddd;
+.now-playing {
+  margin-bottom: 12px;
+  color: var(--text-primary);
   font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  width: 100%;
+  max-width: 800px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 800px;
 }
 
 audio {
-  width: 100%;
+  flex: 1;
+  height: 40px; /* makes the default player a bit sleeker */
+}
+
+/* Optional: overriding some default audio styles for webkit */
+audio::-webkit-media-controls-panel {
+  background-color: var(--bg-tertiary);
+}
+audio::-webkit-media-controls-current-time-display,
+audio::-webkit-media-controls-time-remaining-display {
+  color: var(--text-primary);
+}
+
+.ctrl-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  transition: var(--transition);
+}
+
+.ctrl-btn:hover {
+  background: #333;
+  transform: scale(1.05);
+}
+
+.ctrl-btn.text-btn {
+  border-radius: var(--radius-sm);
+  width: auto;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
 }
 
 .empty {
-  color: #bbb;
-  padding: 10px;
-  border: 1px dashed #444;
-  border-radius: 10px;
+  color: var(--text-secondary);
+  padding: 24px;
+  text-align: center;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .app-header {
+    padding: 16px 16px 8px;
+  }
+  main {
+    padding: 8px 16px;
+  }
+  .player-container {
+    padding: 12px 16px 20px;
+  }
+  .custom-controls {
+    gap: 8px;
+  }
+  .ctrl-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+  }
 }

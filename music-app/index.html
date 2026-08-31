@@ -3,17 +3,44 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>My Library</title>
+  <title>Library</title>
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  
+  <header class="app-header">
+    <h1>Library</h1>
+  </header>
+
   <main>
     <div id="books"></div>
   </main>
 
-  <footer>
-    <div id="now-playing">Nothing playing</div>
-    <audio id="player" controls preload="metadata"></audio>
+  <footer class="player-container">
+    <div id="now-playing" class="now-playing">Nothing playing</div>
+    
+    <div class="custom-controls">
+      <button id="skip-back-btn" class="ctrl-btn" title="Skip Backward 15s">
+        <i class="ph ph-clock-counter-clockwise"></i>
+      </button>
+      
+      <audio id="player" controls preload="metadata"></audio>
+      
+      <button id="skip-forward-btn" class="ctrl-btn" title="Skip Forward 15s">
+        <i class="ph ph-clock-clockwise"></i>
+      </button>
+
+      <button id="speed-btn" class="ctrl-btn text-btn" title="Playback Speed">1x</button>
+    </div>
   </footer>
 
   <script src="app.js"></script>

@@ -268,7 +268,7 @@ function renderBooks() {
 
     const collapseBtn = document.createElement("button");
     collapseBtn.className = "collapse-btn";
-    collapseBtn.textContent = "▸";
+    collapseBtn.innerHTML = '<i class="ph-bold ph-caret-right"></i>';
     collapseBtn.setAttribute("aria-label", "Open or close book");
 
     const title = document.createElement("h3");
@@ -305,7 +305,7 @@ function renderBooks() {
     if (!loaded) {
       const loadBtnBook = document.createElement("button");
       loadBtnBook.className = "load-book-btn";
-      loadBtnBook.textContent = "Load chapters";
+      loadBtnBook.innerHTML = '<i class="ph ph-list-bullets"></i> Load chapters';
       loadBtnBook.addEventListener("click", (e) => {
         e.stopPropagation();
         loadBook(book.id);
@@ -317,14 +317,14 @@ function renderBooks() {
 
       if (completedCount > 0 && completedCount < total) {
         const markAllBtn = document.createElement("button");
-        markAllBtn.textContent = "Mark all as listened";
+        markAllBtn.innerHTML = '<i class="ph ph-check-square"></i> Mark all';
         markAllBtn.addEventListener("click", () => markBookCompleted(book.id));
         bookActions.appendChild(markAllBtn);
       }
 
       if (startedCount > 0) {
         const resetBtn = document.createElement("button");
-        resetBtn.textContent = "Reset book progress";
+        resetBtn.innerHTML = '<i class="ph ph-arrow-counter-clockwise"></i> Reset';
         resetBtn.addEventListener("click", () => resetBookProgress(book.id));
         bookActions.appendChild(resetBtn);
       }
@@ -343,15 +343,20 @@ function renderBooks() {
         button.className = "chapter-button";
         if (state.completed) button.classList.add("completed");
 
-        let btnText = chapter.title || `Chapter ${chapterIndex + 1}`;
+        const chapterTitle = chapter.title || `Chapter ${chapterIndex + 1}`;
+        let iconHtml = '<i class="ph ph-play-circle"></i>';
+        let extraText = '';
+
         if (state.completed) {
-          btnText = `✓ ${btnText}`;
+          iconHtml = '<i class="ph-fill ph-check-circle"></i>';
         } else if (state.time > 0) {
+          iconHtml = '<i class="ph-fill ph-play-circle"></i>';
           const mins = Math.floor(state.time / 60);
           const secs = Math.floor(state.time % 60).toString().padStart(2, "0");
-          btnText = `▶ ${btnText} (Resume ${mins}:${secs})`;
+          extraText = ` <span style="font-size: 0.85em; opacity: 0.8">(Resume ${mins}:${secs})</span>`;
         }
-        button.textContent = btnText;
+        
+        button.innerHTML = `<div style="display:flex; align-items:center; gap:8px;">${iconHtml} <span class="chapter-title">${chapterTitle}</span></div>${extraText}`;
 
         button.addEventListener("click", () => {
           playChapter(book.id, chapterIndex);
@@ -359,7 +364,7 @@ function renderBooks() {
 
         const toggleBtn = document.createElement("button");
         toggleBtn.className = "toggle-btn" + (state.completed ? " completed" : "");
-        toggleBtn.innerHTML = state.completed ? "✓" : "○";
+        toggleBtn.innerHTML = state.completed ? '<i class="ph-fill ph-check-circle"></i>' : '<i class="ph ph-circle"></i>';
         toggleBtn.title = state.completed ? "Mark as unlistened" : "Mark as listened";
         toggleBtn.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -500,4 +505,38 @@ function playNextChapter() {
   if (nextIndex < book.chapters.length) {
     playChapter(current.bookId, nextIndex);
   }
+}
+
+/* ---------- Custom Player Controls ---------- */
+
+const skipBackBtn = document.getElementById("skip-back-btn");
+const skipForwardBtn = document.getElementById("skip-forward-btn");
+const speedBtn = document.getElementById("speed-btn");
+
+if (skipBackBtn) {
+  skipBackBtn.addEventListener("click", () => {
+    if (player && player.readyState > 0) {
+      player.currentTime = Math.max(0, player.currentTime - 15);
+    }
+  });
+}
+
+if (skipForwardBtn) {
+  skipForwardBtn.addEventListener("click", () => {
+    if (player && player.readyState > 0) {
+      player.currentTime = Math.min(player.duration, player.currentTime + 15);
+    }
+  });
+}
+
+if (speedBtn) {
+  const speeds = [1, 1.25, 1.5, 2];
+  let currentSpeedIndex = 0;
+  
+  speedBtn.addEventListener("click", () => {
+    currentSpeedIndex = (currentSpeedIndex + 1) % speeds.length;
+    const newSpeed = speeds[currentSpeedIndex];
+    player.playbackRate = newSpeed;
+    speedBtn.textContent = newSpeed + "x";
+  });
 }
