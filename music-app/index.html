@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Music & Audiobooks</title>
+  <title>My Audiobooks</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1>My Library</h1>
+    <h1>My Audiobooks</h1>
 
     <section class="loader">
       <div class="row">
@@ -19,43 +19,25 @@
 
         <label>
           Repository name
-          <input id="repo" placeholder="music-app" />
-        </label>
-
-        <label>
-          Branch
-          <input id="branch" value="main" />
+          <input id="repo" placeholder="music" />
         </label>
       </div>
 
       <div class="row">
-        <button id="load-btn" class="action">Load all music & books</button>
+        <button id="load-btn" class="action">Load audiobooks from GitHub Releases</button>
         <div id="status" class="status"></div>
       </div>
 
       <p class="hint">
-        Upload audio files to <code>media/music/</code> and
-        <code>media/audiobooks/Book Name/</code> in your GitHub repo, then click
-        <strong>Load all music & books</strong>.
+        Create one release per audiobook. Upload chapter MP3s as release assets.
+        The release title becomes the book title.
       </p>
     </section>
-
-    <nav>
-      <button id="tab-music" class="tab active">Music</button>
-      <button id="tab-books" class="tab">Audiobooks</button>
-    </nav>
   </header>
 
   <main>
-    <section id="music-view">
-      <h2>Music</h2>
-      <ul id="music-list"></ul>
-    </section>
-
-    <section id="books-view" hidden>
-      <h2>Audiobooks</h2>
-      <div id="books"></div>
-    </section>
+    <h2>Audiobooks</h2>
+    <div id="books"></div>
   </main>
 
   <footer>
