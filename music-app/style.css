@@ -7,7 +7,7 @@ body {
   font-family: system-ui, sans-serif;
   background: #111;
   color: #fff;
-  padding-bottom: 110px;
+  padding-bottom: 120px;
 }
 
 header {
@@ -49,7 +49,7 @@ h1 {
   border: 1px solid #444;
   background: #111;
   color: #fff;
-  min-width: 180px;
+  min-width: 200px;
 }
 
 .action {
@@ -76,47 +76,38 @@ h1 {
   margin: 8px 0 0;
 }
 
-code {
-  color: #fff;
-  background: #222;
-  padding: 2px 6px;
-  border-radius: 6px;
-}
-
-nav {
-  display: flex;
-  gap: 8px;
-}
-
-.tab {
-  padding: 10px 14px;
-  border: 1px solid #444;
-  background: #222;
-  color: #fff;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.tab.active {
-  background: #fff;
-  color: #000;
-}
-
 main {
   padding: 16px;
 }
 
-ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.book {
+  margin-bottom: 24px;
+  padding: 12px;
+  border: 1px solid #333;
+  border-radius: 12px;
+  background: #161616;
 }
 
-li {
+.book h3 {
+  margin: 0 0 4px;
+}
+
+.book-author {
+  color: #aaa;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.book ol {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.book li {
   margin-bottom: 8px;
 }
 
-button.track-button,
 button.chapter-button {
   width: 100%;
   text-align: left;
@@ -128,25 +119,8 @@ button.chapter-button {
   cursor: pointer;
 }
 
-button.track-button:hover,
 button.chapter-button:hover {
   background: #2a2a2a;
-}
-
-.book {
-  margin-bottom: 24px;
-  padding: 12px;
-  border: 1px solid #333;
-  border-radius: 12px;
-}
-
-.book h3 {
-  margin: 0 0 4px;
-}
-
-.book-author {
-  color: #aaa;
-  margin-bottom: 10px;
 }
 
 footer {
