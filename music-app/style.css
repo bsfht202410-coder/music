@@ -1,0 +1,120 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #111;
+  color: #fff;
+  padding-bottom: 110px;
+}
+
+header {
+  padding: 16px;
+  border-bottom: 1px solid #333;
+}
+
+h1 {
+  margin: 0 0 12px;
+}
+
+nav {
+  display: flex;
+  gap: 8px;
+}
+
+.tab {
+  padding: 10px 14px;
+  border: 1px solid #444;
+  background: #222;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: #fff;
+  color: #000;
+}
+
+main {
+  padding: 16px;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+li {
+  margin-bottom: 8px;
+}
+
+button.track-button,
+button.chapter-button {
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #444;
+  background: #1d1d1d;
+  color: #fff;
+  cursor: pointer;
+}
+
+button.track-button:hover,
+button.chapter-button:hover {
+  background: #2a2a2a;
+}
+
+.book {
+  margin-bottom: 24px;
+  padding: 12px;
+  border: 1px solid #333;
+  border-radius: 12px;
+}
+
+.book h3 {
+  margin: 0 0 4px;
+}
+
+.book-author {
+  color: #aaa;
+  margin-bottom: 10px;
+}
+
+footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #181818;
+  border-top: 1px solid #333;
+  padding: 12px;
+}
+
+#now-playing {
+  margin-bottom: 8px;
+  color: #ddd;
+  font-size: 14px;
+}
+
+audio {
+  width: 100%;
+}
+
+.empty {
+  color: #bbb;
+  padding: 10px;
+  border: 1px dashed #444;
+  border-radius: 10px;
+}
+
+.error {
+  color: #ff8080;
+  padding: 10px;
+  border: 1px dashed #ff8080;
+  border-radius: 10px;
+}
