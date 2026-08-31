@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>My Audiobooks</title>
+  <title>My Library</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1>My Audiobooks</h1>
+    <h1>My Library</h1>
 
     <section class="loader">
       <div class="row">
@@ -24,19 +24,19 @@
       </div>
 
       <div class="row">
-        <button id="load-btn" class="action">Load audiobooks from GitHub Releases</button>
+        <button id="load-btn" class="action">Load books from GitHub Releases</button>
         <div id="status" class="status"></div>
       </div>
 
       <p class="hint">
-        Create one release per audiobook. Upload chapter MP3s as release assets.
-        The release title becomes the book title.
+        Create one release per book on GitHub and upload the chapter MP3 files
+        as release assets. The release title becomes the book title.
       </p>
     </section>
   </header>
 
   <main>
-    <h2>Audiobooks</h2>
+    <h2>Books</h2>
     <div id="books"></div>
   </main>
 
