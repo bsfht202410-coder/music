@@ -11,62 +11,30 @@ const AUDIO_EXTENSIONS = [
 
 const player = document.getElementById("player");
 const nowPlaying = document.getElementById("now-playing");
-
-const musicList = document.getElementById("music-list");
 const booksEl = document.getElementById("books");
-
-const musicTab = document.getElementById("tab-music");
-const booksTab = document.getElementById("tab-books");
-
-const musicView = document.getElementById("music-view");
-const booksView = document.getElementById("books-view");
 
 const ownerInput = document.getElementById("owner");
 const repoInput = document.getElementById("repo");
-const branchInput = document.getElementById("branch");
 const loadBtn = document.getElementById("load-btn");
 const statusEl = document.getElementById("status");
 
-let library = {
-  music: [],
-  audiobooks: []
-};
-
+let books = [];
 let current = null;
 let lastSaveTime = 0;
 
-musicTab.addEventListener("click", () => showView("music"));
-booksTab.addEventListener("click", () => showView("books"));
 loadBtn.addEventListener("click", loadAll);
 
 loadSettings();
-renderMusic();
-renderAudiobooks();
-
-function showView(view) {
-  if (view === "music") {
-    musicView.hidden = false;
-    booksView.hidden = true;
-    musicTab.classList.add("active");
-    booksTab.classList.remove("active");
-  } else {
-    musicView.hidden = true;
-    booksView.hidden = false;
-    musicTab.classList.remove("active");
-    booksTab.classList.add("active");
-  }
-}
+renderBooks();
 
 function loadSettings() {
   try {
-    const saved = localStorage.getItem("github-loader-settings");
+    const saved = localStorage.getItem("audiobook-loader-settings");
 
     if (saved) {
       const settings = JSON.parse(saved);
-
       ownerInput.value = settings.owner || "";
       repoInput.value = settings.repo || "";
-      branchInput.value = settings.branch || "main";
     }
   } catch (error) {
     console.warn("Could not load saved settings:", error);
@@ -93,19 +61,18 @@ function guessRepoFromCurrentUrl() {
 }
 
 function saveSettings() {
-  const settings = {
-    owner: ownerInput.value.trim(),
-    repo: repoInput.value.trim(),
-    branch: branchInput.value.trim() || "main"
-  };
-
-  localStorage.setItem("github-loader-settings", JSON.stringify(settings));
+  localStorage.setItem(
+    "audiobook-loader-settings",
+    JSON.stringify({
+      owner: ownerInput.value.trim(),
+      repo: repoInput.value.trim()
+    })
+  );
 }
 
 async function loadAll() {
   const owner = ownerInput.value.trim();
   const repo = repoInput.value.trim();
-  const branch = branchInput.value.trim() || "main";
 
   if (!owner || !repo) {
     statusEl.textContent = "Enter your GitHub username and repository name.";
@@ -113,220 +80,141 @@ async function loadAll() {
   }
 
   saveSettings();
-
-  statusEl.textContent = "Loading from GitHub...";
+  statusEl.textContent = "Loading releases from GitHub...";
 
   try {
-    const apiUrl =
-      `https://api.github.com/repos/${encodeURIComponent(owner)}/` +
-      `${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`;
+    const releases = await fetchReleases(owner, repo);
 
-    const response = await fetch(apiUrl, {
-      headers: {
-        Accept: "application/vnd.github+json"
-      }
-    });
+    books = buildBooks(releases);
+    renderBooks();
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(
-          "Repo or branch not found. Check username, repo name, and branch. Private repos need authentication."
-        );
-      }
-
-      if (response.status === 403) {
-        throw new Error(
-          "GitHub API rate limit or permission error. Wait a little and try again."
-        );
-      }
-
-      throw new Error(`GitHub API error: ${response.status}`);
+    if (!releases.length) {
+      statusEl.textContent =
+        "No releases found. Create one release per audiobook.";
+    } else if (!books.length) {
+      statusEl.textContent =
+        "No releases with audio assets found. Upload MP3 files as release assets.";
+    } else {
+      statusEl.textContent = `Loaded ${books.length} audiobook(s).`;
     }
-
-    const data = await response.json();
-
-    const files = (data.tree || []).filter((item) => {
-      return item.type === "blob" && isAudioPath(item.path);
-    });
-
-    library = buildLibrary(files, owner, repo, branch);
-
-    renderMusic();
-    renderAudiobooks();
-
-    let message =
-      `Loaded ${library.music.length} music files and ` +
-      `${library.audiobooks.length} audiobooks.`;
-
-    if (data.truncated) {
-      message += " Warning: GitHub returned a truncated file list.";
-    }
-
-    if (!files.length) {
-      message +=
-        " No audio found. Put files in media/music/ and media/audiobooks/.";
-    }
-
-    statusEl.textContent = message;
   } catch (error) {
     console.error(error);
     statusEl.textContent = error.message;
 
-    library = {
-      music: [],
-      audiobooks: []
-    };
-
-    renderMusic();
-    renderAudiobooks();
+    books = [];
+    renderBooks();
   }
 }
 
-function isAudioPath(path) {
-  const lower = path.toLowerCase();
+async function fetchReleases(owner, repo) {
+  const apiUrl =
+    `https://api.github.com/repos/${encodeURIComponent(owner)}/` +
+    `${encodeURIComponent(repo)}/releases?per_page=100`;
+
+  const response = await fetch(apiUrl, {
+    headers: {
+      Accept: "application/vnd.github+json"
+    }
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(
+        "Repo not found or private. The repository must be public for this free version."
+      );
+    }
+
+    if (response.status === 403) {
+      throw new Error(
+        "GitHub API rate limit or permission error. Wait a little and try again."
+      );
+    }
+
+    throw new Error(`GitHub API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+function buildBooks(releases) {
+  const result = [];
+
+  for (const release of releases) {
+    if (release.draft) continue;
+
+    const assets = (release.assets || [])
+      .filter((asset) => isAudioName(asset.name))
+      .sort((a, b) => {
+        return (a.name || "").localeCompare(b.name || "", undefined, {
+          numeric: true,
+          sensitivity: "base"
+        });
+      });
+
+    if (!assets.length) continue;
+
+    result.push({
+      id: `release:${release.id}`,
+      title:
+        release.name && release.name.trim()
+          ? release.name.trim()
+          : cleanName(release.tag_name || "Untitled"),
+      chapters: assets.map((asset) => ({
+        id: asset.id,
+        title: cleanName(asset.name),
+        src: asset.browser_download_url
+      }))
+    });
+  }
+
+  return result;
+}
+
+function isAudioName(name) {
+  if (!name) return false;
+
+  const lower = name.toLowerCase();
 
   return AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
-function buildLibrary(files, owner, repo, branch) {
-  const music = [];
-  const bookMap = new Map();
-
-  for (const file of files) {
-    const path = file.path.replaceAll("\\", "/");
-
-    if (!isAudioPath(path)) {
-      continue;
-    }
-
-    const src = rawUrl(owner, repo, branch, path);
-    const title = fileNameToTitle(path);
-    const parts = path.split("/");
-
-    if (path.startsWith("media/music/")) {
-      const artist = parts.length > 3 ? parts[2] : "GitHub file";
-
-      music.push({
-        id: path,
-        title,
-        artist,
-        src
-      });
-    } else if (path.startsWith("media/audiobooks/")) {
-      const bookTitle = parts[2] || "Unnamed Audiobook";
-
-      if (!bookMap.has(bookTitle)) {
-        bookMap.set(bookTitle, {
-          id: `book:${bookTitle}`,
-          title: bookTitle,
-          author: "GitHub audiobook",
-          chapters: []
-        });
-      }
-
-      bookMap.get(bookTitle).chapters.push({
-        title,
-        src,
-        sortPath: path
-      });
-    }
-  }
-
-  for (const book of bookMap.values()) {
-    book.chapters.sort((a, b) => {
-      return a.sortPath.localeCompare(b.sortPath, undefined, {
-        numeric: true,
-        sensitivity: "base"
-      });
-    });
-  }
-
-  return {
-    music,
-    audiobooks: Array.from(bookMap.values())
-  };
-}
-
-function rawUrl(owner, repo, branch, path) {
-  const encodedPath = path
-    .split("/")
-    .map(encodeURIComponent)
-    .join("/");
+function cleanName(fileName) {
+  const withoutExtension = fileName.replace(/\.[^.]+$/, "");
 
   return (
-    `https://raw.githubusercontent.com/` +
-    `${encodeURIComponent(owner)}/` +
-    `${encodeURIComponent(repo)}/` +
-    `${encodeURIComponent(branch)}/` +
-    encodedPath
+    withoutExtension
+      .replace(/[-_.]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim() || "Untitled"
   );
 }
 
-function fileNameToTitle(path) {
-  const fileName = path.split("/").pop();
-  const withoutExtension = fileName.replace(/\.[^.]+$/, "");
-
-  return withoutExtension.replace(/[-_]+/g, " ").trim() || "Untitled";
-}
-
-function renderMusic() {
-  musicList.innerHTML = "";
-
-  if (!library.music.length) {
-    const li = document.createElement("li");
-    li.className = "empty";
-    li.textContent =
-      "No music loaded yet. Upload MP3 files to media/music/ and click Load.";
-    musicList.appendChild(li);
-    return;
-  }
-
-  library.music.forEach((track, index) => {
-    const li = document.createElement("li");
-    const button = document.createElement("button");
-
-    button.className = "track-button";
-    button.textContent = `${track.title || "Untitled"} — ${
-      track.artist || "Unknown artist"
-    }`;
-
-    button.addEventListener("click", () => {
-      playMusic(index);
-    });
-
-    li.appendChild(button);
-    musicList.appendChild(li);
-  });
-}
-
-function renderAudiobooks() {
+function renderBooks() {
   booksEl.innerHTML = "";
 
-  if (!library.audiobooks.length) {
+  if (!books.length) {
     const p = document.createElement("p");
     p.className = "empty";
     p.textContent =
-      "No audiobooks loaded yet. Upload chapters to media/audiobooks/Book Name/ and click Load.";
+      "No audiobooks loaded yet. Create one release per book and upload chapter MP3s as assets.";
     booksEl.appendChild(p);
     return;
   }
 
-  library.audiobooks.forEach((book) => {
-    const bookSection = document.createElement("section");
-    bookSection.className = "book";
+  books.forEach((book) => {
+    const section = document.createElement("section");
+    section.className = "book";
 
     const title = document.createElement("h3");
-    title.textContent = book.title || "Untitled audiobook";
+    title.textContent = book.title;
 
-    const author = document.createElement("div");
-    author.className = "book-author";
-    author.textContent = book.author || "Unknown author";
+    const count = document.createElement("div");
+    count.className = "book-author";
+    count.textContent = `${book.chapters.length} chapters`;
 
     const chapterList = document.createElement("ol");
 
-    const chapters = Array.isArray(book.chapters) ? book.chapters : [];
-
-    chapters.forEach((chapter, chapterIndex) => {
+    book.chapters.forEach((chapter, chapterIndex) => {
       const li = document.createElement("li");
       const button = document.createElement("button");
 
@@ -341,41 +229,18 @@ function renderAudiobooks() {
       chapterList.appendChild(li);
     });
 
-    bookSection.appendChild(title);
-    bookSection.appendChild(author);
-    bookSection.appendChild(chapterList);
+    section.appendChild(title);
+    section.appendChild(count);
+    section.appendChild(chapterList);
 
-    booksEl.appendChild(bookSection);
+    booksEl.appendChild(section);
   });
 }
 
-function playMusic(index) {
-  const track = library.music[index];
-
-  if (!track || !track.src) {
-    nowPlaying.textContent = "Missing music file.";
-    return;
-  }
-
-  current = {
-    type: "music",
-    id: `music:${track.id || track.src}`,
-    index
-  };
-
-  startAudio(
-    track.src,
-    `${track.title || "Untitled"} — ${track.artist || "Unknown artist"}`
-  );
-}
-
 function playChapter(bookId, chapterIndex) {
-  const book = library.audiobooks.find((b) => b.id === bookId);
+  const book = books.find((b) => b.id === bookId);
 
-  if (!book || !Array.isArray(book.chapters)) {
-    nowPlaying.textContent = "Missing audiobook.";
-    return;
-  }
+  if (!book) return;
 
   const chapter = book.chapters[chapterIndex];
 
@@ -385,18 +250,12 @@ function playChapter(bookId, chapterIndex) {
   }
 
   current = {
-    type: "audiobook",
     bookId,
     chapterIndex,
-    id: `book:${bookId}:${chapterIndex}`
+    id: `pos:${bookId}:${chapter.id || chapter.src}`
   };
 
-  startAudio(
-    chapter.src,
-    `${book.title || "Untitled"} — ${
-      chapter.title || `Chapter ${chapterIndex + 1}`
-    }`
-  );
+  startAudio(chapter.src, `${book.title} — ${chapter.title}`);
 }
 
 function startAudio(src, label) {
@@ -430,7 +289,7 @@ function startAudio(src, label) {
   player.onerror = () => {
     player.onerror = null;
     nowPlaying.textContent =
-      "Could not load audio file. Check that the file exists and is public.";
+      "Could not load audio file. Check that the release is public and the asset exists.";
   };
 
   player.load();
@@ -457,13 +316,11 @@ player.addEventListener("ended", () => {
 
   localStorage.setItem("position:" + current.id, String(player.currentTime));
 
-  if (current.type === "audiobook") {
-    playNextChapter();
-  }
+  playNextChapter();
 });
 
 function playNextChapter() {
-  const book = library.audiobooks.find((b) => b.id === current.bookId);
+  const book = books.find((b) => b.id === current.bookId);
 
   if (!book || !Array.isArray(book.chapters)) return;
 
