@@ -2,7 +2,7 @@ const AUDIO_EXTENSIONS = [
   ".mp3", ".m4a", ".aac", ".ogg", ".wav", ".m4b", ".opus", ".webm"
 ];
 
-/* Fallback if the repo cannot be detected from the URL */
+/* Default fallback repository */
 const DEFAULT_OWNER = "bsfht202410-coder";
 const DEFAULT_REPO = "music";
 
@@ -62,18 +62,19 @@ let currentSpeedIdx = 1; // default 1.0x
 
 initialLoad();
 
-/* ---------- Repo detection ---------- */
+/* ---------- Robust Repo Detection & Persistence ---------- */
 
 function getRepoSettings() {
-  let owner = "";
-  let repo = "";
+  let owner = DEFAULT_OWNER;
+  let repo = DEFAULT_REPO;
 
   try {
     const saved = localStorage.getItem("audiobook-loader-settings");
     if (saved) {
       const s = JSON.parse(saved);
-      owner = s.owner || "";
-      repo = s.repo || "";
+      if (s.owner && s.owner.trim()) owner = s.owner.trim();
+      if (s.repo && s.repo.trim()) repo = s.repo.trim();
+      return { owner, repo };
     }
   } catch (error) {
     console.warn("Could not read saved settings:", error);
@@ -82,25 +83,20 @@ function getRepoSettings() {
   const host = window.location.hostname;
   const path = window.location.pathname;
 
-  if (!owner && host.endsWith(".github.io")) {
+  // Detect username from github.io domain (e.g. bsfht202410-coder.github.io)
+  if (host.endsWith(".github.io")) {
     owner = host.split(".")[0];
-  }
-
-  if (!repo) {
-    const possibleRepo = path.split("/")[1];
-    if (possibleRepo && !possibleRepo.endsWith(".html")) {
-      repo = possibleRepo;
+    const pathParts = path.split("/").filter(Boolean);
+    if (pathParts.length > 0 && !pathParts[0].includes(".")) {
+      repo = pathParts[0];
     }
   }
 
-  return {
-    owner: owner || DEFAULT_OWNER,
-    repo: repo || DEFAULT_REPO
-  };
+  return { owner, repo };
 }
 
 async function initialLoad() {
-  booksEl.innerHTML = '<p class="empty"><i class="ph ph-spinner ph-spin" style="font-size:24px;display:block;margin-bottom:8px"></i>Loading library from GitHub...</p>';
+  booksEl.innerHTML = '<p class="empty"><i class="ph ph-spinner ph-spin" style="font-size:26px;display:block;margin-bottom:10px"></i>Loading library...</p>';
 
   const { owner, repo } = getRepoSettings();
 
@@ -115,13 +111,18 @@ async function initialLoad() {
 
     renderBooks();
   } catch (error) {
-    console.error(error);
+    console.error("Initial load error:", error);
     books = [];
     booksEl.innerHTML = "";
     const p = document.createElement("p");
     p.className = "empty";
-    p.innerHTML = `<i class="ph-bold ph-warning-circle" style="font-size:28px;color:#f59e0b;display:block;margin-bottom:8px"></i>${error.message}`;
+    p.innerHTML = `<i class="ph-bold ph-warning-circle" style="font-size:28px;color:#f59e0b;display:block;margin-bottom:8px"></i>${error.message}<br><button id="retry-load-btn" class="pill-btn" style="margin:12px auto 0;display:inline-flex;">Retry</button>`;
     booksEl.appendChild(p);
+
+    const retryBtn = document.getElementById("retry-load-btn");
+    if (retryBtn) {
+      retryBtn.addEventListener("click", initialLoad);
+    }
   }
 }
 
@@ -186,28 +187,44 @@ function resetBookProgress(bookId) {
   renderBooks();
 }
 
-/* ---------- GitHub Releases API ---------- */
+/* ---------- GitHub Releases API with Offline Cache ---------- */
 
 async function fetchReleases(owner, repo) {
+  const cacheKey = `releases_cache:${owner}:${repo}`;
   const apiUrl =
     `https://api.github.com/repos/${encodeURIComponent(owner)}/` +
     `${encodeURIComponent(repo)}/releases?per_page=100`;
 
-  const response = await fetch(apiUrl, {
-    headers: { Accept: "application/vnd.github+json" }
-  });
+  try {
+    const response = await fetch(apiUrl, {
+      headers: { Accept: "application/vnd.github+json" }
+    });
 
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error("Repo not found or private. The repository must be public.");
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+        return data;
+      }
     }
-    if (response.status === 403) {
-      throw new Error("GitHub API rate limit exceeded. Please wait a few minutes.");
-    }
-    throw new Error(`GitHub API error: ${response.status}`);
+  } catch (err) {
+    console.warn("Network fetch failed, attempting cached data fallback:", err);
   }
 
-  return response.json();
+  // Fallback to cache
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch (e) {
+      console.warn("Cached data parse error:", e);
+    }
+  }
+
+  throw new Error("Unable to load audio releases. Please verify repository is public.");
 }
 
 function buildBooks(releases) {
@@ -260,7 +277,7 @@ function cleanName(fileName) {
   );
 }
 
-/* ---------- Rendering Book List ---------- */
+/* ---------- Rendering Books ---------- */
 
 function renderBooks() {
   booksEl.innerHTML = "";
@@ -268,7 +285,7 @@ function renderBooks() {
   if (!books.length) {
     const p = document.createElement("p");
     p.className = "empty";
-    p.innerHTML = '<i class="ph ph-books" style="font-size:32px;display:block;margin-bottom:8px"></i>No audiobooks found in this repository. Create releases containing audio files (MP3, M4B, AAC, etc.).';
+    p.innerHTML = '<i class="ph ph-books" style="font-size:32px;display:block;margin-bottom:8px"></i>No books found in this repository.';
     booksEl.appendChild(p);
     return;
   }
@@ -307,7 +324,7 @@ function renderBooks() {
 
     section.classList.add(statusClass);
 
-    /* header row */
+    /* Header row */
     const headerRow = document.createElement("div");
     headerRow.className = "book-header";
 
@@ -343,7 +360,7 @@ function renderBooks() {
       setCollapsed(book.id, nowCollapsed);
     });
 
-    /* body */
+    /* Body */
     const body = document.createElement("div");
     body.className = "book-body";
 
@@ -435,7 +452,7 @@ function renderBooks() {
   });
 }
 
-/* ---------- Playback Core ---------- */
+/* ---------- Playback Core (Mobile Friendly) ---------- */
 
 function playChapter(bookId, chapterIndex) {
   const book = books.find((b) => b.id === bookId);
@@ -469,31 +486,47 @@ function startAudio(src, startTime) {
   player.src = src;
   player.playbackRate = PLAYBACK_SPEEDS[currentSpeedIdx];
 
-  const onCanPlay = () => {
-    player.removeEventListener("canplay", onCanPlay);
+  // Resume position when metadata loads
+  if (startTime > 0) {
+    const onMetadata = () => {
+      player.removeEventListener("loadedmetadata", onMetadata);
+      if (startTime < (player.duration || Infinity) - 2) {
+        player.currentTime = startTime;
+      }
+    };
+    player.addEventListener("loadedmetadata", onMetadata);
+  }
 
-    if (
-      startTime > 0 &&
-      Number.isFinite(player.duration) &&
-      startTime < player.duration - 3
-    ) {
-      player.currentTime = startTime;
-    }
-
-    player.play().catch((error) => {
-      console.warn("Playback error:", error);
+  // Play immediately within user click event context to comply with mobile autoplay policies
+  const playPromise = player.play();
+  if (playPromise !== undefined) {
+    playPromise.catch((error) => {
+      console.warn("Autoplay check:", error);
     });
-  };
+  }
 
-  player.addEventListener("canplay", onCanPlay);
+  updateMediaSession();
+}
 
-  player.onerror = () => {
-    player.onerror = null;
-    miniChapterTitle.textContent = "Error loading audio file";
-    modalChapterTitle.textContent = "Error loading audio file";
-  };
+function updateMediaSession() {
+  if (!('mediaSession' in navigator) || !current) return;
 
-  player.load();
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: current.chapterTitle,
+      artist: current.bookTitle,
+      album: "Audiobook"
+    });
+
+    navigator.mediaSession.setActionHandler('play', () => player.play());
+    navigator.mediaSession.setActionHandler('pause', () => player.pause());
+    navigator.mediaSession.setActionHandler('seekbackward', () => skipSeconds(-10));
+    navigator.mediaSession.setActionHandler('seekforward', () => skipSeconds(10));
+    navigator.mediaSession.setActionHandler('previoustrack', () => playPrevChapter());
+    navigator.mediaSession.setActionHandler('nexttrack', () => playNextChapter());
+  } catch (e) {
+    console.warn("MediaSession error:", e);
+  }
 }
 
 function formatTime(seconds) {
@@ -547,11 +580,11 @@ function updateSeekSlider() {
   durationLabel.textContent = formatTime(duration);
 
   if (duration > 0) {
-    const percent = (currentT / duration) * 100;
+    const percent = Math.min(100, Math.max(0, (currentT / duration) * 100));
     miniProgressFill.style.width = `${percent}%`;
     modalSeekSlider.value = percent;
 
-    // High contrast gradient fill on slider track
+    // Smooth gradient on track
     modalSeekSlider.style.background = `linear-gradient(to right, var(--accent-emerald) 0%, var(--accent-emerald) ${percent}%, #27272a ${percent}%, #27272a 100%)`;
   } else {
     miniProgressFill.style.width = "0%";
@@ -582,8 +615,8 @@ player.addEventListener("timeupdate", () => {
   const now = Date.now();
   const state = getChapterState(current.bookId, current.chapterId);
 
-  // Mark completed when 98% done or less than 5 seconds remaining
-  if (player.duration > 0 && player.currentTime >= player.duration - 5) {
+  // Auto mark completed at 98%
+  if (player.duration > 0 && player.currentTime >= player.duration - 4) {
     if (!state.completed) {
       state.completed = true;
       state.time = player.duration;
@@ -592,8 +625,8 @@ player.addEventListener("timeupdate", () => {
     }
   }
 
-  // Save every 3 seconds
-  if (now - lastSaveTime > 3000) {
+  // Periodic save
+  if (now - lastSaveTime > 2500) {
     state.time = player.currentTime;
     saveChapterState(current.bookId, current.chapterId, state);
     lastSaveTime = now;
@@ -608,7 +641,7 @@ player.addEventListener("ended", () => {
   saveChapterState(current.bookId, current.chapterId, state);
   renderBooks();
 
-  if (sleepTimerText.textContent.includes("End of chapter")) {
+  if (sleepTimerText.textContent.includes("End of Ch.")) {
     clearSleepTimer();
     return;
   }
@@ -765,12 +798,12 @@ function updateSleepCountdown() {
   sleepTimerText.textContent = `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-/* ---------- Modal Open / Close ---------- */
+/* ---------- Modal Sheet Open / Close ---------- */
 
 function openModal() {
   playerModal.classList.add("open");
   playerModal.setAttribute("aria-hidden", "false");
-  document.body.style.overflow = "hidden"; // prevent scroll behind
+  document.body.style.overflow = "hidden";
   updateSeekSlider();
 }
 
@@ -785,7 +818,7 @@ miniExpandBtn.addEventListener("click", openModal);
 modalCloseBtn.addEventListener("click", closeModal);
 modalBackdrop.addEventListener("click", closeModal);
 
-// Swipe down to dismiss on mobile
+// Swipe down to dismiss gesture on mobile
 let touchStartY = 0;
 modalHandle.addEventListener("touchstart", (e) => {
   touchStartY = e.touches[0].clientY;
@@ -793,7 +826,7 @@ modalHandle.addEventListener("touchstart", (e) => {
 
 modalHandle.addEventListener("touchend", (e) => {
   const touchEndY = e.changedTouches[0].clientY;
-  if (touchEndY - touchStartY > 60) {
+  if (touchEndY - touchStartY > 50) {
     closeModal();
   }
 }, { passive: true });

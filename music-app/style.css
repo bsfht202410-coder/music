@@ -513,12 +513,14 @@ main {
   justify-content: flex-end;
   visibility: hidden;
   opacity: 0;
+  pointer-events: none;
   transition: visibility 0.3s, opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .player-modal.open {
   visibility: visible;
   opacity: 1;
+  pointer-events: auto;
 }
 
 .modal-backdrop {
@@ -687,6 +689,7 @@ main {
   display: flex;
   align-items: center;
   cursor: pointer;
+  touch-action: none;
 }
 
 .seek-slider {
@@ -698,6 +701,7 @@ main {
   background: #27272a;
   outline: none;
   cursor: pointer;
+  touch-action: none;
   transition: height 0.15s;
 }
 
