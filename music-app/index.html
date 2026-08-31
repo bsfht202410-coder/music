@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Library</title>
   
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -18,30 +18,152 @@
 <body>
   
   <header class="app-header">
-    <h1>Library</h1>
+    <div class="header-content">
+      <h1>Library</h1>
+      <span id="repo-indicator" class="repo-badge">GitHub Sync</span>
+    </div>
   </header>
 
   <main>
     <div id="books"></div>
   </main>
 
-  <footer class="player-container">
-    <div id="now-playing" class="now-playing">Nothing playing</div>
-    
-    <div class="custom-controls">
-      <button id="skip-back-btn" class="ctrl-btn" title="Skip Backward 15s">
-        <i class="ph ph-clock-counter-clockwise"></i>
-      </button>
-      
-      <audio id="player" controls preload="metadata"></audio>
-      
-      <button id="skip-forward-btn" class="ctrl-btn" title="Skip Forward 15s">
-        <i class="ph ph-clock-clockwise"></i>
-      </button>
+  <!-- Audio Element (Controlled purely via custom UI) -->
+  <audio id="player" preload="metadata"></audio>
 
-      <button id="speed-btn" class="ctrl-btn text-btn" title="Playback Speed">1x</button>
+  <!-- Docked Mini Player -->
+  <footer id="mini-player" class="mini-player-container" aria-label="Audio player">
+    <!-- Progress line on top edge -->
+    <div class="mini-progress-track">
+      <div id="mini-progress-bar" class="mini-progress-fill"></div>
+    </div>
+
+    <div class="mini-player-content">
+      <div class="mini-info" id="mini-info-tap" title="Tap to open full player">
+        <div class="mini-artwork">
+          <i class="ph-fill ph-book-open"></i>
+        </div>
+        <div class="mini-titles">
+          <div id="mini-book-title" class="mini-book">Nothing playing</div>
+          <div id="mini-chapter-title" class="mini-chapter">Select a chapter</div>
+        </div>
+      </div>
+
+      <div class="mini-controls">
+        <button id="mini-skip-back" class="icon-btn" title="Skip -10s" aria-label="Skip backward 10 seconds">
+          <i class="ph-bold ph-arrow-counter-clockwise"></i>
+          <span class="skip-sec">10</span>
+        </button>
+
+        <button id="mini-play-btn" class="play-btn-round" title="Play / Pause" aria-label="Play or Pause">
+          <i id="mini-play-icon" class="ph-fill ph-play"></i>
+        </button>
+
+        <button id="mini-skip-fwd" class="icon-btn" title="Skip +10s" aria-label="Skip forward 10 seconds">
+          <i class="ph-bold ph-arrow-clockwise"></i>
+          <span class="skip-sec">10</span>
+        </button>
+
+        <button id="mini-expand-btn" class="icon-btn expand-btn" title="Expand player" aria-label="Expand player">
+          <i class="ph-bold ph-caret-up"></i>
+        </button>
+      </div>
     </div>
   </footer>
+
+  <!-- Fullscreen / Expanded Mobile Player Modal -->
+  <div id="player-modal" class="player-modal" aria-hidden="true">
+    <div class="modal-backdrop" id="modal-backdrop"></div>
+    
+    <div class="modal-sheet">
+      <!-- Drag handle / close bar -->
+      <div class="modal-handle-area" id="modal-handle">
+        <div class="modal-handle-bar"></div>
+      </div>
+
+      <div class="modal-header">
+        <button id="modal-close-btn" class="icon-btn modal-close" title="Close player">
+          <i class="ph-bold ph-caret-down"></i>
+        </button>
+        <span class="modal-now-playing-label">Now Playing</span>
+        <button id="modal-speed-btn" class="speed-badge-btn" title="Change playback speed">1.0x</button>
+      </div>
+
+      <div class="modal-art-container">
+        <div class="modal-art-box" id="art-visualizer">
+          <i class="ph-fill ph-headphones art-icon"></i>
+          <div class="sound-wave-bars" id="wave-bars">
+            <span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-track-info">
+        <h2 id="modal-chapter-title" class="modal-chapter">Chapter Name</h2>
+        <p id="modal-book-title" class="modal-book">Book Title</p>
+      </div>
+
+      <!-- High precision large touch scrubber -->
+      <div class="scrubber-container">
+        <div class="scrubber-touch-zone" id="scrubber-touch-zone">
+          <input 
+            type="range" 
+            id="modal-seek-slider" 
+            class="seek-slider" 
+            min="0" 
+            max="100" 
+            value="0" 
+            step="0.1" 
+            aria-label="Seek track position"
+          />
+        </div>
+        <div class="time-display-row">
+          <span id="current-time-label" class="time-label">0:00</span>
+          <span id="duration-label" class="time-label">0:00</span>
+        </div>
+      </div>
+
+      <!-- Primary Control Buttons (Large touch area) -->
+      <div class="modal-main-controls">
+        <button id="modal-prev-btn" class="icon-btn secondary-ctrl" title="Previous chapter" aria-label="Previous chapter">
+          <i class="ph-fill ph-skip-back"></i>
+        </button>
+
+        <button id="modal-skip-back-btn" class="icon-btn skip-btn-lg" title="Skip -10 seconds" aria-label="Skip backward 10 seconds">
+          <i class="ph-bold ph-arrow-counter-clockwise"></i>
+          <span class="skip-num">10</span>
+        </button>
+
+        <button id="modal-play-btn" class="modal-play-primary" title="Play or pause" aria-label="Play or pause">
+          <i id="modal-play-icon" class="ph-fill ph-play"></i>
+        </button>
+
+        <button id="modal-skip-fwd-btn" class="icon-btn skip-btn-lg" title="Skip +10 seconds" aria-label="Skip forward 10 seconds">
+          <i class="ph-bold ph-arrow-clockwise"></i>
+          <span class="skip-num">10</span>
+        </button>
+
+        <button id="modal-next-btn" class="icon-btn secondary-ctrl" title="Next chapter" aria-label="Next chapter">
+          <i class="ph-fill ph-skip-forward"></i>
+        </button>
+      </div>
+
+      <!-- Extra Actions Row (Sleep Timer, Quick jump 30s) -->
+      <div class="modal-extra-actions">
+        <button id="modal-skip-back-30" class="pill-btn" title="Skip -30 seconds">
+          <i class="ph-bold ph-arrow-u-up-left"></i> -30s
+        </button>
+
+        <button id="sleep-timer-btn" class="pill-btn" title="Sleep timer">
+          <i class="ph-bold ph-moon"></i> <span id="sleep-timer-text">Timer</span>
+        </button>
+
+        <button id="modal-skip-fwd-30" class="pill-btn" title="Skip +30 seconds">
+          +30s <i class="ph-bold ph-arrow-u-up-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

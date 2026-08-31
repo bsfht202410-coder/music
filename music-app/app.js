@@ -6,18 +6,63 @@ const AUDIO_EXTENSIONS = [
 const DEFAULT_OWNER = "bsfht202410-coder";
 const DEFAULT_REPO = "music";
 
+/* DOM Elements */
 const player = document.getElementById("player");
-const nowPlaying = document.getElementById("now-playing");
 const booksEl = document.getElementById("books");
+
+/* Mini Player Elements */
+const miniProgressFill = document.getElementById("mini-progress-bar");
+const miniBookTitle = document.getElementById("mini-book-title");
+const miniChapterTitle = document.getElementById("mini-chapter-title");
+const miniPlayBtn = document.getElementById("mini-play-btn");
+const miniPlayIcon = document.getElementById("mini-play-icon");
+const miniSkipBack = document.getElementById("mini-skip-back");
+const miniSkipFwd = document.getElementById("mini-skip-fwd");
+const miniInfoTap = document.getElementById("mini-info-tap");
+const miniExpandBtn = document.getElementById("mini-expand-btn");
+
+/* Modal Player Elements */
+const playerModal = document.getElementById("player-modal");
+const modalCloseBtn = document.getElementById("modal-close-btn");
+const modalBackdrop = document.getElementById("modal-backdrop");
+const modalHandle = document.getElementById("modal-handle");
+const modalBookTitle = document.getElementById("modal-book-title");
+const modalChapterTitle = document.getElementById("modal-chapter-title");
+const modalSeekSlider = document.getElementById("modal-seek-slider");
+const currentTimeLabel = document.getElementById("current-time-label");
+const durationLabel = document.getElementById("duration-label");
+const modalPlayBtn = document.getElementById("modal-play-btn");
+const modalPlayIcon = document.getElementById("modal-play-icon");
+const modalPrevBtn = document.getElementById("modal-prev-btn");
+const modalNextBtn = document.getElementById("modal-next-btn");
+const modalSkipBackBtn = document.getElementById("modal-skip-back-btn");
+const modalSkipFwdBtn = document.getElementById("modal-skip-fwd-btn");
+const modalSkipBack30 = document.getElementById("modal-skip-back-30");
+const modalSkipFwd30 = document.getElementById("modal-skip-fwd-30");
+const modalSpeedBtn = document.getElementById("modal-speed-btn");
+const sleepTimerBtn = document.getElementById("sleep-timer-btn");
+const sleepTimerText = document.getElementById("sleep-timer-text");
 
 let books = [];
 let loadedBooks = new Set();
 let current = null;
 let lastSaveTime = 0;
+let isUserScrubbing = false;
+
+/* Sleep timer state */
+const SLEEP_OPTIONS = [0, 15, 30, 45, 60, "end"];
+let currentSleepIdx = 0;
+let sleepTimeout = null;
+let sleepInterval = null;
+let sleepEndTime = 0;
+
+/* Speeds */
+const PLAYBACK_SPEEDS = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+let currentSpeedIdx = 1; // default 1.0x
 
 initialLoad();
 
-/* ---------- repo detection (no visible inputs) ---------- */
+/* ---------- Repo detection ---------- */
 
 function getRepoSettings() {
   let owner = "";
@@ -55,7 +100,7 @@ function getRepoSettings() {
 }
 
 async function initialLoad() {
-  booksEl.innerHTML = '<p class="empty">Loading library...</p>';
+  booksEl.innerHTML = '<p class="empty"><i class="ph ph-spinner ph-spin" style="font-size:24px;display:block;margin-bottom:8px"></i>Loading library from GitHub...</p>';
 
   const { owner, repo } = getRepoSettings();
 
@@ -75,12 +120,12 @@ async function initialLoad() {
     booksEl.innerHTML = "";
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = error.message;
+    p.innerHTML = `<i class="ph-bold ph-warning-circle" style="font-size:28px;color:#f59e0b;display:block;margin-bottom:8px"></i>${error.message}`;
     booksEl.appendChild(p);
   }
 }
 
-/* ---------- progress storage ---------- */
+/* ---------- Progress Storage ---------- */
 
 function getChapterState(bookId, chapterId) {
   try {
@@ -141,7 +186,7 @@ function resetBookProgress(bookId) {
   renderBooks();
 }
 
-/* ---------- GitHub releases ---------- */
+/* ---------- GitHub Releases API ---------- */
 
 async function fetchReleases(owner, repo) {
   const apiUrl =
@@ -157,7 +202,7 @@ async function fetchReleases(owner, repo) {
       throw new Error("Repo not found or private. The repository must be public.");
     }
     if (response.status === 403) {
-      throw new Error("GitHub API rate limit. Wait a little and try again.");
+      throw new Error("GitHub API rate limit exceeded. Please wait a few minutes.");
     }
     throw new Error(`GitHub API error: ${response.status}`);
   }
@@ -215,7 +260,7 @@ function cleanName(fileName) {
   );
 }
 
-/* ---------- rendering ---------- */
+/* ---------- Rendering Book List ---------- */
 
 function renderBooks() {
   booksEl.innerHTML = "";
@@ -223,7 +268,7 @@ function renderBooks() {
   if (!books.length) {
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = "No books found. Create one release per book with MP3 assets.";
+    p.innerHTML = '<i class="ph ph-books" style="font-size:32px;display:block;margin-bottom:8px"></i>No audiobooks found in this repository. Create releases containing audio files (MP3, M4B, AAC, etc.).';
     booksEl.appendChild(p);
     return;
   }
@@ -257,7 +302,7 @@ function renderBooks() {
     } else if (startedCount > 0) {
       statusClass = "status-partial";
       badgeClass = "badge-partial";
-      badgeText = "In progress";
+      badgeText = `${completedCount}/${total} done`;
     }
 
     section.classList.add(statusClass);
@@ -277,7 +322,7 @@ function renderBooks() {
 
     const count = document.createElement("span");
     count.className = "book-count";
-    count.textContent = `${completedCount}/${total}`;
+    count.textContent = `${total} chapters`;
 
     const badge = document.createElement("span");
     badge.className = `badge ${badgeClass}`;
@@ -305,7 +350,7 @@ function renderBooks() {
     if (!loaded) {
       const loadBtnBook = document.createElement("button");
       loadBtnBook.className = "load-book-btn";
-      loadBtnBook.innerHTML = '<i class="ph ph-list-bullets"></i> Load chapters';
+      loadBtnBook.innerHTML = '<i class="ph-bold ph-list-bullets"></i> Load chapters';
       loadBtnBook.addEventListener("click", (e) => {
         e.stopPropagation();
         loadBook(book.id);
@@ -317,14 +362,14 @@ function renderBooks() {
 
       if (completedCount > 0 && completedCount < total) {
         const markAllBtn = document.createElement("button");
-        markAllBtn.innerHTML = '<i class="ph ph-check-square"></i> Mark all';
+        markAllBtn.innerHTML = '<i class="ph-bold ph-check-square"></i> Mark all completed';
         markAllBtn.addEventListener("click", () => markBookCompleted(book.id));
         bookActions.appendChild(markAllBtn);
       }
 
       if (startedCount > 0) {
         const resetBtn = document.createElement("button");
-        resetBtn.innerHTML = '<i class="ph ph-arrow-counter-clockwise"></i> Reset';
+        resetBtn.innerHTML = '<i class="ph-bold ph-arrow-counter-clockwise"></i> Reset progress';
         resetBtn.addEventListener("click", () => resetBookProgress(book.id));
         bookActions.appendChild(resetBtn);
       }
@@ -335,6 +380,7 @@ function renderBooks() {
 
       book.chapters.forEach((chapter, chapterIndex) => {
         const state = getChapterState(book.id, chapter.id);
+        const isCurrentPlaying = current && current.bookId === book.id && current.chapterIndex === chapterIndex;
 
         const li = document.createElement("li");
         li.className = "chapter-row";
@@ -342,21 +388,25 @@ function renderBooks() {
         const button = document.createElement("button");
         button.className = "chapter-button";
         if (state.completed) button.classList.add("completed");
+        if (isCurrentPlaying) button.classList.add("playing");
 
         const chapterTitle = chapter.title || `Chapter ${chapterIndex + 1}`;
-        let iconHtml = '<i class="ph ph-play-circle"></i>';
-        let extraText = '';
+        let iconHtml = isCurrentPlaying 
+          ? '<i class="ph-fill ph-speaker-high" style="color:var(--accent-emerald)"></i>'
+          : (state.completed ? '<i class="ph-fill ph-check-circle" style="color:var(--accent-emerald)"></i>' : '<i class="ph-fill ph-play-circle"></i>');
 
-        if (state.completed) {
-          iconHtml = '<i class="ph-fill ph-check-circle"></i>';
-        } else if (state.time > 0) {
-          iconHtml = '<i class="ph-fill ph-play-circle"></i>';
-          const mins = Math.floor(state.time / 60);
-          const secs = Math.floor(state.time % 60).toString().padStart(2, "0");
-          extraText = ` <span style="font-size: 0.85em; opacity: 0.8">(Resume ${mins}:${secs})</span>`;
+        let extraText = '';
+        if (!state.completed && state.time > 0) {
+          extraText = ` <span style="font-size: 0.82em; color: var(--accent-amber); font-weight:600">(${formatTime(state.time)})</span>`;
         }
-        
-        button.innerHTML = `<div style="display:flex; align-items:center; gap:8px;">${iconHtml} <span class="chapter-title">${chapterTitle}</span></div>${extraText}`;
+
+        button.innerHTML = `
+          <div style="display:flex; align-items:center; gap:10px; min-width:0; overflow:hidden">
+            <span style="font-size:18px; flex-shrink:0">${iconHtml}</span>
+            <span class="chapter-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${chapterTitle}</span>
+          </div>
+          ${extraText}
+        `;
 
         button.addEventListener("click", () => {
           playChapter(book.id, chapterIndex);
@@ -365,7 +415,7 @@ function renderBooks() {
         const toggleBtn = document.createElement("button");
         toggleBtn.className = "toggle-btn" + (state.completed ? " completed" : "");
         toggleBtn.innerHTML = state.completed ? '<i class="ph-fill ph-check-circle"></i>' : '<i class="ph ph-circle"></i>';
-        toggleBtn.title = state.completed ? "Mark as unlistened" : "Mark as listened";
+        toggleBtn.title = state.completed ? "Mark uncompleted" : "Mark completed";
         toggleBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           toggleChapter(book.id, chapter.id);
@@ -385,7 +435,7 @@ function renderBooks() {
   });
 }
 
-/* ---------- playback ---------- */
+/* ---------- Playback Core ---------- */
 
 function playChapter(bookId, chapterIndex) {
   const book = books.find((b) => b.id === bookId);
@@ -395,34 +445,29 @@ function playChapter(bookId, chapterIndex) {
 
   if (!isLoaded(bookId)) loadedBooks.add(bookId);
   if (getCollapsed(bookId)) setCollapsed(bookId, false);
-  renderBooks();
 
   current = {
     bookId,
     chapterId: chapter.id,
     chapterIndex,
-    id: `state:${bookId}:${chapter.id}`
+    bookTitle: book.title,
+    chapterTitle: chapter.title || `Chapter ${chapterIndex + 1}`
   };
+
+  renderBooks();
+  updatePlayerUI();
 
   const state = getChapterState(bookId, chapter.id);
   const startTime = state.completed ? 0 : state.time;
 
-  startAudio(chapter.src, `${book.title} — ${chapter.title}`, startTime);
+  startAudio(chapter.src, startTime);
 }
 
-function startAudio(src, label, startTime) {
-  if (!src) {
-    nowPlaying.textContent = "Missing audio file.";
-    return;
-  }
+function startAudio(src, startTime) {
+  if (!src) return;
 
   player.src = src;
-
-  if (startTime > 0) {
-    nowPlaying.textContent = `${label} (Resuming...)`;
-  } else {
-    nowPlaying.textContent = label;
-  }
+  player.playbackRate = PLAYBACK_SPEEDS[currentSpeedIdx];
 
   const onCanPlay = () => {
     player.removeEventListener("canplay", onCanPlay);
@@ -430,39 +475,114 @@ function startAudio(src, label, startTime) {
     if (
       startTime > 0 &&
       Number.isFinite(player.duration) &&
-      startTime < player.duration - 5
+      startTime < player.duration - 3
     ) {
       player.currentTime = startTime;
     }
 
     player.play().catch((error) => {
-      console.warn("Playback failed:", error);
+      console.warn("Playback error:", error);
     });
-
-    setTimeout(() => {
-      if (nowPlaying.textContent.includes("(Resuming...)")) {
-        nowPlaying.textContent = label;
-      }
-    }, 2000);
   };
 
   player.addEventListener("canplay", onCanPlay);
 
   player.onerror = () => {
     player.onerror = null;
-    nowPlaying.textContent =
-      "Could not load audio file. Check that the release is public and the asset exists.";
+    miniChapterTitle.textContent = "Error loading audio file";
+    modalChapterTitle.textContent = "Error loading audio file";
   };
 
   player.load();
 }
 
-player.addEventListener("timeupdate", () => {
+function formatTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function updatePlayerUI() {
   if (!current) return;
 
+  miniBookTitle.textContent = current.bookTitle;
+  miniChapterTitle.textContent = current.chapterTitle;
+
+  modalBookTitle.textContent = current.bookTitle;
+  modalChapterTitle.textContent = current.chapterTitle;
+}
+
+function updatePlayIcons(isPlaying) {
+  const iconClass = isPlaying ? "ph-fill ph-pause" : "ph-fill ph-play";
+  miniPlayIcon.className = iconClass;
+  modalPlayIcon.className = iconClass;
+
+  if (isPlaying) {
+    playerModal.classList.add("playing");
+  } else {
+    playerModal.classList.remove("playing");
+  }
+}
+
+function skipSeconds(offset) {
+  if (!player || !Number.isFinite(player.duration)) return;
+  const newTime = Math.max(0, Math.min(player.duration, player.currentTime + offset));
+  player.currentTime = newTime;
+  updateSeekSlider();
+}
+
+function updateSeekSlider() {
+  if (isUserScrubbing) return;
+
+  const duration = player.duration || 0;
+  const currentT = player.currentTime || 0;
+
+  currentTimeLabel.textContent = formatTime(currentT);
+  durationLabel.textContent = formatTime(duration);
+
+  if (duration > 0) {
+    const percent = (currentT / duration) * 100;
+    miniProgressFill.style.width = `${percent}%`;
+    modalSeekSlider.value = percent;
+
+    // High contrast gradient fill on slider track
+    modalSeekSlider.style.background = `linear-gradient(to right, var(--accent-emerald) 0%, var(--accent-emerald) ${percent}%, #27272a ${percent}%, #27272a 100%)`;
+  } else {
+    miniProgressFill.style.width = "0%";
+    modalSeekSlider.value = 0;
+    modalSeekSlider.style.background = "#27272a";
+  }
+}
+
+/* ---------- Audio Event Handlers ---------- */
+
+player.addEventListener("play", () => {
+  updatePlayIcons(true);
+});
+
+player.addEventListener("pause", () => {
+  updatePlayIcons(false);
+  if (current) {
+    const state = getChapterState(current.bookId, current.chapterId);
+    state.time = player.currentTime;
+    saveChapterState(current.bookId, current.chapterId, state);
+  }
+});
+
+player.addEventListener("timeupdate", () => {
+  updateSeekSlider();
+
+  if (!current) return;
   const now = Date.now();
   const state = getChapterState(current.bookId, current.chapterId);
 
+  // Mark completed when 98% done or less than 5 seconds remaining
   if (player.duration > 0 && player.currentTime >= player.duration - 5) {
     if (!state.completed) {
       state.completed = true;
@@ -472,6 +592,7 @@ player.addEventListener("timeupdate", () => {
     }
   }
 
+  // Save every 3 seconds
   if (now - lastSaveTime > 3000) {
     state.time = player.currentTime;
     saveChapterState(current.bookId, current.chapterId, state);
@@ -479,21 +600,19 @@ player.addEventListener("timeupdate", () => {
   }
 });
 
-player.addEventListener("pause", () => {
-  if (!current) return;
-  const state = getChapterState(current.bookId, current.chapterId);
-  state.time = player.currentTime;
-  saveChapterState(current.bookId, current.chapterId, state);
-});
-
 player.addEventListener("ended", () => {
   if (!current) return;
-
   const state = getChapterState(current.bookId, current.chapterId);
   state.completed = true;
   state.time = player.duration;
   saveChapterState(current.bookId, current.chapterId, state);
   renderBooks();
+
+  if (sleepTimerText.textContent.includes("End of chapter")) {
+    clearSleepTimer();
+    return;
+  }
+
   playNextChapter();
 });
 
@@ -507,36 +626,174 @@ function playNextChapter() {
   }
 }
 
-/* ---------- Custom Player Controls ---------- */
+function playPrevChapter() {
+  if (!current) return;
+  if (player.currentTime > 5) {
+    player.currentTime = 0;
+    return;
+  }
+  const prevIndex = current.chapterIndex - 1;
+  if (prevIndex >= 0) {
+    playChapter(current.bookId, prevIndex);
+  }
+}
 
-const skipBackBtn = document.getElementById("skip-back-btn");
-const skipForwardBtn = document.getElementById("skip-forward-btn");
-const speedBtn = document.getElementById("speed-btn");
+/* ---------- Touch / Scrubber Events ---------- */
 
-if (skipBackBtn) {
-  skipBackBtn.addEventListener("click", () => {
-    if (player && player.readyState > 0) {
-      player.currentTime = Math.max(0, player.currentTime - 15);
+modalSeekSlider.addEventListener("input", (e) => {
+  isUserScrubbing = true;
+  const percent = parseFloat(e.target.value);
+  if (player.duration) {
+    const previewTime = (percent / 100) * player.duration;
+    currentTimeLabel.textContent = formatTime(previewTime);
+    modalSeekSlider.style.background = `linear-gradient(to right, var(--accent-emerald) 0%, var(--accent-emerald) ${percent}%, #27272a ${percent}%, #27272a 100%)`;
+  }
+});
+
+modalSeekSlider.addEventListener("change", (e) => {
+  if (player.duration) {
+    const percent = parseFloat(e.target.value);
+    player.currentTime = (percent / 100) * player.duration;
+  }
+  isUserScrubbing = false;
+});
+
+/* ---------- Play/Pause Toggle ---------- */
+
+function togglePlay() {
+  if (!player.src) {
+    if (books.length > 0 && books[0].chapters.length > 0) {
+      playChapter(books[0].id, 0);
     }
-  });
+    return;
+  }
+
+  if (player.paused) {
+    player.play();
+  } else {
+    player.pause();
+  }
 }
 
-if (skipForwardBtn) {
-  skipForwardBtn.addEventListener("click", () => {
-    if (player && player.readyState > 0) {
-      player.currentTime = Math.min(player.duration, player.currentTime + 15);
-    }
-  });
+miniPlayBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  togglePlay();
+});
+
+modalPlayBtn.addEventListener("click", togglePlay);
+
+/* ---------- Skip Controls ---------- */
+
+miniSkipBack.addEventListener("click", (e) => {
+  e.stopPropagation();
+  skipSeconds(-10);
+});
+
+miniSkipFwd.addEventListener("click", (e) => {
+  e.stopPropagation();
+  skipSeconds(10);
+});
+
+modalSkipBackBtn.addEventListener("click", () => skipSeconds(-10));
+modalSkipFwdBtn.addEventListener("click", () => skipSeconds(10));
+modalSkipBack30.addEventListener("click", () => skipSeconds(-30));
+modalSkipFwd30.addEventListener("click", () => skipSeconds(30));
+
+modalPrevBtn.addEventListener("click", playPrevChapter);
+modalNextBtn.addEventListener("click", playNextChapter);
+
+/* ---------- Speed Control ---------- */
+
+modalSpeedBtn.addEventListener("click", () => {
+  currentSpeedIdx = (currentSpeedIdx + 1) % PLAYBACK_SPEEDS.length;
+  const speed = PLAYBACK_SPEEDS[currentSpeedIdx];
+  player.playbackRate = speed;
+  modalSpeedBtn.textContent = `${speed.toFixed(speed % 1 === 0 ? 1 : 2)}x`;
+});
+
+/* ---------- Sleep Timer ---------- */
+
+function clearSleepTimer() {
+  if (sleepTimeout) clearTimeout(sleepTimeout);
+  if (sleepInterval) clearInterval(sleepInterval);
+  sleepTimeout = null;
+  sleepInterval = null;
+  sleepTimerBtn.classList.remove("active");
+  sleepTimerText.textContent = "Timer";
+  currentSleepIdx = 0;
 }
 
-if (speedBtn) {
-  const speeds = [1, 1.25, 1.5, 2];
-  let currentSpeedIndex = 0;
-  
-  speedBtn.addEventListener("click", () => {
-    currentSpeedIndex = (currentSpeedIndex + 1) % speeds.length;
-    const newSpeed = speeds[currentSpeedIndex];
-    player.playbackRate = newSpeed;
-    speedBtn.textContent = newSpeed + "x";
-  });
+sleepTimerBtn.addEventListener("click", () => {
+  currentSleepIdx = (currentSleepIdx + 1) % SLEEP_OPTIONS.length;
+  const option = SLEEP_OPTIONS[currentSleepIdx];
+
+  if (sleepTimeout) clearTimeout(sleepTimeout);
+  if (sleepInterval) clearInterval(sleepInterval);
+
+  if (option === 0) {
+    clearSleepTimer();
+    return;
+  }
+
+  sleepTimerBtn.classList.add("active");
+
+  if (option === "end") {
+    sleepTimerText.textContent = "End of Ch.";
+    return;
+  }
+
+  const durationMs = option * 60 * 1000;
+  sleepEndTime = Date.now() + durationMs;
+
+  sleepTimeout = setTimeout(() => {
+    player.pause();
+    clearSleepTimer();
+  }, durationMs);
+
+  updateSleepCountdown();
+  sleepInterval = setInterval(updateSleepCountdown, 1000);
+});
+
+function updateSleepCountdown() {
+  const remainingSec = Math.round((sleepEndTime - Date.now()) / 1000);
+  if (remainingSec <= 0) {
+    clearSleepTimer();
+    return;
+  }
+  const m = Math.floor(remainingSec / 60);
+  const s = remainingSec % 60;
+  sleepTimerText.textContent = `${m}:${s.toString().padStart(2, "0")}`;
 }
+
+/* ---------- Modal Open / Close ---------- */
+
+function openModal() {
+  playerModal.classList.add("open");
+  playerModal.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden"; // prevent scroll behind
+  updateSeekSlider();
+}
+
+function closeModal() {
+  playerModal.classList.remove("open");
+  playerModal.setAttribute("aria-hidden", "true");
+  document.body.style.overflow = "";
+}
+
+miniInfoTap.addEventListener("click", openModal);
+miniExpandBtn.addEventListener("click", openModal);
+modalCloseBtn.addEventListener("click", closeModal);
+modalBackdrop.addEventListener("click", closeModal);
+
+// Swipe down to dismiss on mobile
+let touchStartY = 0;
+modalHandle.addEventListener("touchstart", (e) => {
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+modalHandle.addEventListener("touchend", (e) => {
+  const touchEndY = e.changedTouches[0].clientY;
+  if (touchEndY - touchStartY > 60) {
+    closeModal();
+  }
+}, { passive: true });
