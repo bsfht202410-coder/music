@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Music & Audiobooks</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>My Library</h1>
+
+    <nav>
+      <button id="tab-music" class="tab active">Music</button>
+      <button id="tab-books" class="tab">Audiobooks</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="music-view">
+      <h2>Music</h2>
+      <ul id="music-list"></ul>
+    </section>
+
+    <section id="books-view" hidden>
+      <h2>Audiobooks</h2>
+      <div id="books"></div>
+    </section>
+  </main>
+
+  <footer>
+    <div id="now-playing">Nothing playing</div>
+    <audio id="player" controls preload="metadata"></audio>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
