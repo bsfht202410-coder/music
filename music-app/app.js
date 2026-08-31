@@ -58,7 +58,7 @@ function saveSettings() {
   );
 }
 
-// --- Progress Tracking Functions ---
+/* ---------- progress storage ---------- */
 
 function getChapterState(bookId, chapterId) {
   try {
@@ -71,6 +71,14 @@ function getChapterState(bookId, chapterId) {
 
 function saveChapterState(bookId, chapterId, state) {
   localStorage.setItem(`state:${bookId}:${chapterId}`, JSON.stringify(state));
+}
+
+function getCollapsed(bookId) {
+  return localStorage.getItem(`collapsed:${bookId}`) !== "0";
+}
+
+function setCollapsed(bookId, collapsed) {
+  localStorage.setItem(`collapsed:${bookId}`, collapsed ? "1" : "0");
 }
 
 function toggleChapter(bookId, chapterId) {
@@ -101,7 +109,7 @@ function resetBookProgress(bookId) {
   renderBooks();
 }
 
-// --- GitHub Release Loading ---
+/* ---------- GitHub releases ---------- */
 
 async function loadAll() {
   const owner = ownerInput.value.trim();
@@ -121,11 +129,11 @@ async function loadAll() {
     renderBooks();
 
     if (!releases.length) {
-      statusEl.textContent = "No releases found. Create one release per audiobook.";
+      statusEl.textContent = "No releases found. Create one release per book.";
     } else if (!books.length) {
       statusEl.textContent = "No releases with audio assets found.";
     } else {
-      statusEl.textContent = `Loaded ${books.length} audiobook(s).`;
+      statusEl.textContent = `Loaded ${books.length} book(s).`;
     }
   } catch (error) {
     console.error(error);
@@ -136,32 +144,50 @@ async function loadAll() {
 }
 
 async function fetchReleases(owner, repo) {
-  const apiUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/releases?per_page=100`;
+  const apiUrl =
+    `https://api.github.com/repos/${encodeURIComponent(owner)}/` +
+    `${encodeURIComponent(repo)}/releases?per_page=100`;
+
   const response = await fetch(apiUrl, {
     headers: { Accept: "application/vnd.github+json" }
   });
 
   if (!response.ok) {
-    if (response.status === 404) throw new Error("Repo not found or private.");
-    if (response.status === 403) throw new Error("GitHub API rate limit reached. Wait a minute and try again.");
+    if (response.status === 404) {
+      throw new Error("Repo not found or private. The repository must be public.");
+    }
+    if (response.status === 403) {
+      throw new Error("GitHub API rate limit. Wait a little and try again.");
+    }
     throw new Error(`GitHub API error: ${response.status}`);
   }
+
   return response.json();
 }
 
 function buildBooks(releases) {
   const result = [];
+
   for (const release of releases) {
     if (release.draft) continue;
+
     const assets = (release.assets || [])
       .filter((asset) => isAudioName(asset.name))
-      .sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: "base" }));
+      .sort((a, b) => {
+        return (a.name || "").localeCompare(b.name || "", undefined, {
+          numeric: true,
+          sensitivity: "base"
+        });
+      });
 
     if (!assets.length) continue;
 
     result.push({
       id: `release:${release.id}`,
-      title: release.name && release.name.trim() ? release.name.trim() : cleanName(release.tag_name || "Untitled"),
+      title:
+        release.name && release.name.trim()
+          ? release.name.trim()
+          : "Untitled book",
       chapters: assets.map((asset) => ({
         id: String(asset.id),
         title: cleanName(asset.name),
@@ -169,27 +195,36 @@ function buildBooks(releases) {
       }))
     });
   }
+
   return result;
 }
 
 function isAudioName(name) {
   if (!name) return false;
-  return AUDIO_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext));
+  const lower = name.toLowerCase();
+  return AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
 function cleanName(fileName) {
   const withoutExtension = fileName.replace(/\.[^.]+$/, "");
-  return withoutExtension.replace(/[-_.]+/g, " ").replace(/\s+/g, " ").trim() || "Untitled";
+  return (
+    withoutExtension
+      .replace(/[-_.]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim() || "Untitled"
+  );
 }
 
-// --- UI Rendering ---
+/* ---------- rendering ---------- */
 
 function renderBooks() {
   booksEl.innerHTML = "";
+
   if (!books.length) {
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = "No audiobooks loaded yet. Create one release per book and upload chapter MP3s as assets.";
+    p.textContent =
+      "No books loaded yet. Create one release per book and upload chapter MP3s as assets.";
     booksEl.appendChild(p);
     return;
   }
@@ -197,63 +232,115 @@ function renderBooks() {
   books.forEach((book) => {
     const section = document.createElement("section");
     section.className = "book";
+    if (getCollapsed(book.id)) section.classList.add("collapsed");
 
+    let completedCount = 0;
+    let startedCount = 0;
+
+    book.chapters.forEach((ch) => {
+      const st = getChapterState(book.id, ch.id);
+      if (st.completed) completedCount++;
+      if (st.completed || st.time > 0) startedCount++;
+    });
+
+    const total = book.chapters.length;
+
+    let statusClass = "status-new";
+    let badgeClass = "badge-new";
+    let badgeText = "Not started";
+
+    if (total > 0 && completedCount === total) {
+      statusClass = "status-completed";
+      badgeClass = "badge-completed";
+      badgeText = "Finished";
+    } else if (startedCount > 0) {
+      statusClass = "status-partial";
+      badgeClass = "badge-partial";
+      badgeText = "In progress";
+    }
+
+    section.classList.add(statusClass);
+
+    /* header (click to open/close) */
     const headerRow = document.createElement("div");
     headerRow.className = "book-header";
+
+    const collapseBtn = document.createElement("button");
+    collapseBtn.className = "collapse-btn";
+    collapseBtn.textContent = "▸";
+    collapseBtn.setAttribute("aria-label", "Open or close book");
+
     const title = document.createElement("h3");
+    title.className = "book-title";
     title.textContent = book.title;
+
+    const count = document.createElement("span");
+    count.className = "book-count";
+    count.textContent = `${completedCount}/${total}`;
+
+    const badge = document.createElement("span");
+    badge.className = `badge ${badgeClass}`;
+    badge.textContent = badgeText;
+
+    headerRow.appendChild(collapseBtn);
     headerRow.appendChild(title);
+    headerRow.appendChild(count);
+    headerRow.appendChild(badge);
 
-    const listenedCount = book.chapters.filter(ch => getChapterState(book.id, ch.id).completed).length;
-    const totalCount = book.chapters.length;
+    headerRow.addEventListener("click", () => {
+      const nowCollapsed = !section.classList.contains("collapsed");
+      section.classList.toggle("collapsed", nowCollapsed);
+      setCollapsed(book.id, nowCollapsed);
+    });
 
-    const count = document.createElement("div");
-    count.className = "book-author";
-    count.textContent = `${listenedCount} / ${totalCount} chapters listened`;
-    
+    /* body (hidden when collapsed) */
+    const body = document.createElement("div");
+    body.className = "book-body";
+
     const bookActions = document.createElement("div");
     bookActions.className = "book-actions";
-    
-    if (listenedCount > 0 && listenedCount < totalCount) {
+
+    if (completedCount > 0 && completedCount < total) {
       const markAllBtn = document.createElement("button");
       markAllBtn.textContent = "Mark all as listened";
       markAllBtn.addEventListener("click", () => markBookCompleted(book.id));
       bookActions.appendChild(markAllBtn);
     }
 
-    if (listenedCount > 0) {
+    if (startedCount > 0) {
       const resetBtn = document.createElement("button");
       resetBtn.textContent = "Reset book progress";
       resetBtn.addEventListener("click", () => resetBookProgress(book.id));
       bookActions.appendChild(resetBtn);
     }
 
-    section.appendChild(headerRow);
-    section.appendChild(count);
-    if (bookActions.children.length > 0) section.appendChild(bookActions);
+    if (bookActions.children.length > 0) body.appendChild(bookActions);
 
     const chapterList = document.createElement("ol");
 
     book.chapters.forEach((chapter, chapterIndex) => {
       const state = getChapterState(book.id, chapter.id);
-      
+
       const li = document.createElement("li");
       li.className = "chapter-row";
 
       const button = document.createElement("button");
       button.className = "chapter-button";
       if (state.completed) button.classList.add("completed");
-      
+
       let btnText = chapter.title || `Chapter ${chapterIndex + 1}`;
       if (state.completed) {
         btnText = `✓ ${btnText}`;
       } else if (state.time > 0) {
         const mins = Math.floor(state.time / 60);
-        const secs = Math.floor(state.time % 60).toString().padStart(2, '0');
+        const secs = Math.floor(state.time % 60).toString().padStart(2, "0");
         btnText = `▶ ${btnText} (Resume ${mins}:${secs})`;
       }
       button.textContent = btnText;
-      button.addEventListener("click", () => playChapter(book.id, chapterIndex));
+
+      button.addEventListener("click", () => {
+        playChapter(book.id, chapterIndex);
+      });
 
       const toggleBtn = document.createElement("button");
       toggleBtn.className = "toggle-btn" + (state.completed ? " completed" : "");
@@ -269,12 +356,15 @@ function renderBooks() {
       chapterList.appendChild(li);
     });
 
-    section.appendChild(chapterList);
+    body.appendChild(chapterList);
+
+    section.appendChild(headerRow);
+    section.appendChild(body);
     booksEl.appendChild(section);
   });
 }
 
-// --- Audio Player Logic ---
+/* ---------- playback ---------- */
 
 function playChapter(bookId, chapterIndex) {
   const book = books.find((b) => b.id === bookId);
@@ -289,17 +379,25 @@ function playChapter(bookId, chapterIndex) {
     id: `state:${bookId}:${chapter.id}`
   };
 
+  if (getCollapsed(bookId)) {
+    setCollapsed(bookId, false);
+    renderBooks();
+  }
+
   const state = getChapterState(bookId, chapter.id);
-  // If already completed, start from 0. Otherwise, resume.
   const startTime = state.completed ? 0 : state.time;
 
   startAudio(chapter.src, `${book.title} — ${chapter.title}`, startTime);
 }
 
 function startAudio(src, label, startTime) {
-  if (!src) return;
+  if (!src) {
+    nowPlaying.textContent = "Missing audio file.";
+    return;
+  }
+
   player.src = src;
-  
+
   if (startTime > 0) {
     nowPlaying.textContent = `${label} (Resuming...)`;
   } else {
@@ -308,10 +406,19 @@ function startAudio(src, label, startTime) {
 
   const onCanPlay = () => {
     player.removeEventListener("canplay", onCanPlay);
-    if (startTime > 0 && Number.isFinite(player.duration) && startTime < player.duration - 5) {
+
+    if (
+      startTime > 0 &&
+      Number.isFinite(player.duration) &&
+      startTime < player.duration - 5
+    ) {
       player.currentTime = startTime;
     }
-    player.play().catch((error) => console.warn("Playback failed:", error));
+
+    player.play().catch((error) => {
+      console.warn("Playback failed:", error);
+    });
+
     setTimeout(() => {
       if (nowPlaying.textContent.includes("(Resuming...)")) {
         nowPlaying.textContent = label;
@@ -320,19 +427,22 @@ function startAudio(src, label, startTime) {
   };
 
   player.addEventListener("canplay", onCanPlay);
+
   player.onerror = () => {
     player.onerror = null;
-    nowPlaying.textContent = "Could not load audio file.";
+    nowPlaying.textContent =
+      "Could not load audio file. Check that the release is public and the asset exists.";
   };
+
   player.load();
 }
 
 player.addEventListener("timeupdate", () => {
   if (!current) return;
+
   const now = Date.now();
   const state = getChapterState(current.bookId, current.chapterId);
-  
-  // Auto-complete when reaching the end
+
   if (player.duration > 0 && player.currentTime >= player.duration - 5) {
     if (!state.completed) {
       state.completed = true;
@@ -342,7 +452,6 @@ player.addEventListener("timeupdate", () => {
     }
   }
 
-  // Save time every 3 seconds
   if (now - lastSaveTime > 3000) {
     state.time = player.currentTime;
     saveChapterState(current.bookId, current.chapterId, state);
@@ -359,6 +468,7 @@ player.addEventListener("pause", () => {
 
 player.addEventListener("ended", () => {
   if (!current) return;
+
   const state = getChapterState(current.bookId, current.chapterId);
   state.completed = true;
   state.time = player.duration;
