@@ -88,8 +88,17 @@ main {
   background: #161616;
 }
 
-.book h3 {
-  margin: 0 0 4px;
+.book-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.book-header h3 {
+  margin: 0;
+  flex: 1;
 }
 
 .book-author {
@@ -98,18 +107,42 @@ main {
   font-size: 14px;
 }
 
+.book-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.book-actions button {
+  padding: 6px 10px;
+  font-size: 13px;
+  background: #222;
+  border: 1px solid #444;
+  color: #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.book-actions button:hover {
+  background: #333;
+}
+
 .book ol {
   margin: 0;
   padding-left: 0;
   list-style: none;
 }
 
-.book li {
+.chapter-row {
+  display: flex;
+  gap: 8px;
   margin-bottom: 8px;
+  align-items: stretch;
 }
 
-button.chapter-button {
-  width: 100%;
+.chapter-button {
+  flex: 1;
   text-align: left;
   padding: 12px;
   border-radius: 10px;
@@ -117,10 +150,41 @@ button.chapter-button {
   background: #1d1d1d;
   color: #fff;
   cursor: pointer;
+  font-size: 15px;
 }
 
-button.chapter-button:hover {
+.chapter-button:hover {
   background: #2a2a2a;
+}
+
+.chapter-button.completed {
+  background: #1e2a1e;
+  border-color: #4caf50;
+  color: #a5d6a7;
+}
+
+.toggle-btn {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #444;
+  background: #1d1d1d;
+  color: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+}
+
+.toggle-btn:hover {
+  background: #2a2a2a;
+}
+
+.toggle-btn.completed {
+  background: #1e2a1e;
+  border-color: #4caf50;
+  color: #4caf50;
 }
 
 footer {
@@ -147,12 +211,5 @@ audio {
   color: #bbb;
   padding: 10px;
   border: 1px dashed #444;
-  border-radius: 10px;
-}
-
-.error {
-  color: #ff8080;
-  padding: 10px;
-  border: 1px dashed #ff8080;
   border-radius: 10px;
 }
