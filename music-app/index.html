@@ -7,36 +7,7 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>My Library</h1>
-
-    <section class="loader">
-      <div class="row">
-        <label>
-          GitHub username
-          <input id="owner" placeholder="your-username" />
-        </label>
-
-        <label>
-          Repository name
-          <input id="repo" placeholder="music" />
-        </label>
-      </div>
-
-      <div class="row">
-        <button id="load-btn" class="action">Load books from GitHub Releases</button>
-        <div id="status" class="status"></div>
-      </div>
-
-      <p class="hint">
-        Create one release per book on GitHub and upload the chapter MP3 files
-        as release assets. The release title becomes the book title.
-      </p>
-    </section>
-  </header>
-
   <main>
-    <h2>Books</h2>
     <div id="books"></div>
   </main>
 
