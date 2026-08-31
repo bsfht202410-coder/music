@@ -10,6 +10,36 @@
   <header>
     <h1>My Library</h1>
 
+    <section class="loader">
+      <div class="row">
+        <label>
+          GitHub username
+          <input id="owner" placeholder="your-username" />
+        </label>
+
+        <label>
+          Repository name
+          <input id="repo" placeholder="music-app" />
+        </label>
+
+        <label>
+          Branch
+          <input id="branch" value="main" />
+        </label>
+      </div>
+
+      <div class="row">
+        <button id="load-btn" class="action">Load all music & books</button>
+        <div id="status" class="status"></div>
+      </div>
+
+      <p class="hint">
+        Upload audio files to <code>media/music/</code> and
+        <code>media/audiobooks/Book Name/</code> in your GitHub repo, then click
+        <strong>Load all music & books</strong>.
+      </p>
+    </section>
+
     <nav>
       <button id="tab-music" class="tab active">Music</button>
       <button id="tab-books" class="tab">Audiobooks</button>
