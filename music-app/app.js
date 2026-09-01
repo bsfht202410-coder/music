@@ -393,7 +393,29 @@ function renderBooks() {
 
       if (bookActions.children.length > 0) body.appendChild(bookActions);
 
+      if (book.chapters.length > 6) {
+        const searchBox = document.createElement("div");
+        searchBox.className = "chapter-search-box";
+        searchBox.innerHTML = `
+          <i class="ph-bold ph-magnifying-glass search-icon"></i>
+          <input type="text" class="chapter-search-input" placeholder="Search chapters..." aria-label="Search chapters">
+        `;
+        const searchInput = searchBox.querySelector("input");
+        searchInput.addEventListener("input", (e) => {
+          const q = e.target.value.toLowerCase().trim();
+          const rows = chapterList.querySelectorAll(".chapter-row");
+          rows.forEach((row) => {
+            const titleEl = row.querySelector(".chapter-title");
+            if (!titleEl) return;
+            const match = titleEl.textContent.toLowerCase().includes(q);
+            row.style.display = match ? "flex" : "none";
+          });
+        });
+        body.appendChild(searchBox);
+      }
+
       const chapterList = document.createElement("ol");
+      chapterList.className = "chapter-list";
 
       book.chapters.forEach((chapter, chapterIndex) => {
         const state = getChapterState(book.id, chapter.id);
@@ -414,13 +436,13 @@ function renderBooks() {
 
         let extraText = '';
         if (!state.completed && state.time > 0) {
-          extraText = ` <span style="font-size: 0.82em; color: var(--accent-amber); font-weight:600">(${formatTime(state.time)})</span>`;
+          extraText = `<span class="chapter-extra-info">(${formatTime(state.time)})</span>`;
         }
 
         button.innerHTML = `
-          <div style="display:flex; align-items:center; gap:10px; min-width:0; overflow:hidden">
-            <span style="font-size:18px; flex-shrink:0">${iconHtml}</span>
-            <span class="chapter-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${chapterTitle}</span>
+          <div class="chapter-main-info">
+            <span class="chapter-icon">${iconHtml}</span>
+            <span class="chapter-title">${chapterTitle}</span>
           </div>
           ${extraText}
         `;
